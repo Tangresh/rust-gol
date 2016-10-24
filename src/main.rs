@@ -38,7 +38,7 @@ struct GameBoard {
 }
 impl GameBoard {
     fn initialize_with(initial_generation: Generation) -> GameBoard {
-        GameBoard{
+        GameBoard {
             generations: vec!(initial_generation)
         }
     }
@@ -48,36 +48,8 @@ impl GameBoard {
     }
 
     fn advance_time(&mut self) {
-        let mut new_generation: HashSet<Position> = HashSet::new();
-        {
-            let current_generation = self.get_current_generation();
-            let interesting_positions = self.get_interesting_positions();
-            for interesting_position in interesting_positions {
-                let mut count = 0;
-                for neighbour in interesting_position.get_neighbours() {
-                    if (current_generation.live_cells().contains(&neighbour)) {
-                        count = count + 1;
-                    }
-                }
-                if (count == 3) {
-                    new_generation.insert(interesting_position);
-                }
-                else if (count == 2 && current_generation.live_cells().contains(&interesting_position)) {
-                    new_generation.insert(interesting_position);
-                }
-            }
-        }
-        self.generations.push(Generation::new(new_generation))
-    }
-
-    fn get_interesting_positions(&self) -> HashSet<Position> {
-        let mut interesting_positions = HashSet::new();
-        let current_generation = self.get_current_generation();
-        for pos in current_generation.live_cells() {
-            let neighbours = pos.get_neighbours();
-            interesting_positions.extend(neighbours);
-        }
-        interesting_positions
+        let new_generation = self.get_current_generation().create_offspring();
+        self.generations.push(new_generation);
     }
 }
 impl WithLiveCells for GameBoard {
@@ -102,8 +74,35 @@ impl Generation {
         }
     }
 
-    fn live_cells(&self) -> &HashSet<Position> {
-        &self.live_positions
+    fn create_offspring(&self) -> Generation {
+        let mut new_generation: HashSet<Position> = HashSet::new();
+        {
+            let interesting_positions = self.get_live_cells_with_halos();
+            for interesting_position in interesting_positions {
+                let mut count = 0;
+                for neighbour in interesting_position.get_neighbours() {
+                    if self.live_positions.contains(&neighbour) {
+                        count = count + 1;
+                    }
+                }
+                if count == 3 {
+                    new_generation.insert(interesting_position);
+                }
+                else if count == 2 && self.live_positions.contains(&interesting_position) {
+                    new_generation.insert(interesting_position);
+                }
+            }
+        }
+        Generation::new(new_generation)
+    }
+
+    fn get_live_cells_with_halos(&self) -> HashSet<Position> {
+        let mut interesting_positions = HashSet::new();
+        for pos in &self.live_positions {
+            let neighbours = pos.get_neighbours();
+            interesting_positions.extend(neighbours);
+        }
+        interesting_positions
     }
 }
 impl WithLiveCells for Generation {
@@ -122,13 +121,14 @@ impl GenerationBuilder {
         self
     }
 
-    fn build(mut self) -> Generation {
+    fn build(self) -> Generation {
         Generation::new(self.live_positions)
     }
 }
 
 #[cfg(test)]
-#[macro_use(expect)] extern crate expectest;
+#[macro_use(expect)]
+extern crate expectest;
 
 #[cfg(test)]
 mod tests {
@@ -138,11 +138,6 @@ mod tests {
     use super::WithLiveCells;
     use super::GameBoard;
     use super::Generation;
-
-    #[test]
-    fn position_should_exist() {
-        let pos = Position::new(0, 0);
-    }
 
     #[test]
     fn two_positions_with_same_coords_should_be_equal() {
