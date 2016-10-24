@@ -4,3 +4,6 @@ version = "0.1.0"
 authors = ["Dominik Menzi <dmenzi@tangresh.ch>"]
 
 [dependencies]
+
+[dev-dependencies]
+expectest = "0.6.0"
