@@ -1,229 +1,194 @@
-use std::collections::HashSet;
-use std::ops::Index;
+#[macro_use] extern crate conrod;
+extern crate piston_window;
 
-#[derive(PartialEq, Eq, Hash, Debug)]
-struct Position {
-    x: i64,
-    y: i64
+use std::path::Path;
+use piston_window::{EventLoop, PistonWindow, UpdateEvent, WindowSettings};
+use conrod::{color, widget, Borderable, Colorable, Positionable, Widget, Labelable, Sizeable};
+mod gol;
+use gol::GameBoard;
+mod widgets;
+use widgets::StandardButton;
+
+struct GameState {
+    board: GameBoard,
+    running: bool,
+    gps: f64,
+    current_time: f64,
 }
 
-impl Position {
-    fn new(x: i64, y: i64) -> Position {
-        Position {
-            x: x,
-            y: y,
-        }
-    }
+fn main() {
+    const WIDTH: u32 = 1100;
+    const HEIGHT: u32 = 560;
 
-    fn get_neighbours(&self) -> HashSet<Position> {
-        let mut neighbours = HashSet::new();
-        for x in -1..2 {
-            for y in -1..2 {
-                let neighbour = Position::new(self.x + x, self.y + y);
-                if &neighbour != self {
-                    neighbours.insert(neighbour);
+    let opengl = piston_window::OpenGL::V3_2;
+
+    let mut window: PistonWindow =
+    WindowSettings::new("All The Widgets!", [WIDTH, HEIGHT])
+        .opengl(opengl).exit_on_esc(true).vsync(true).build().unwrap();
+
+    // construct our `Ui`.
+    let mut ui = conrod::UiBuilder::new().build();
+
+    // Add a `Font` to the `Ui`'s `font::Map` from file.
+//    let assets = find_folder::Search::KidsThenParents(3, 5).for_folder("assets").unwrap();
+//    let font_path = assets.join("fonts/NotoSans/NotoSans-Regular.ttf");
+    ui.fonts.insert_from_file(Path::new("/usr/share/fonts/noto/NotoSans-Regular.ttf")).unwrap();
+
+    // Create a texture to use for efficiently caching text on the GPU.
+    let mut text_texture_cache =
+    conrod::backend::piston_window::GlyphCache::new(&mut window, WIDTH, HEIGHT);
+
+    // The image map describing each of our widget->image mappings (in our case, none).
+    let image_map = conrod::image::Map::new();
+
+    // Identifiers used for instantiating our widgets.
+    widget_ids! {struct Ids { canvas, controls, game_display, start_stop_button, step_button, faster_button, slower_button, board }}
+    let ids = Ids::new(ui.widget_id_generator());
+
+    window.set_ups(60);
+
+    let initial_generation_builder = gol::Generation::build()
+        .add(0, 0)
+        .add(0, 1)
+        .add(0, -1);
+    let initial_generation_builder = initial_generation_builder
+        .add(11, 11)
+        .add(12, 11)
+        .add(12, 13)
+        .add(14, 12)
+        .add(15, 11)
+        .add(16, 11)
+        .add(17, 11);
+    let initial_generation_builder = initial_generation_builder
+        .add(2, -1)
+        .add(3, -1)
+        .add(1, -2)
+        .add(2, -2)
+        .add(2, -3);
+    let initial_generation = initial_generation_builder.build();
+
+    let mut game_state = GameState {
+        board: GameBoard::initialize_with(initial_generation),
+        running: false,
+        gps: 4.0,
+        current_time: 0.0
+    };
+
+    // Poll events from the window.
+    while let Some(event) = window.next() {
+
+        // Convert the piston event to a conrod event.
+        if let Some(e) = conrod::backend::piston_window::convert_event(event.clone(), &window) {
+            ui.handle_event(e);
+        }
+
+        // `Update` the widgets.
+        event.update(|args| {
+            let ui = &mut ui.set_widgets();
+
+            if game_state.running {
+                game_state.current_time += args.dt;
+                let generation_time = 1.0/game_state.gps;
+                while game_state.current_time > generation_time {
+                    game_state.current_time -= generation_time;
+                    game_state.board.advance_time();
                 }
             }
-        }
-        neighbours
-    }
-}
 
-trait WithLiveCells {
-    fn is_alive(&self, pos: &Position) -> bool;
-}
+            // Create a background canvas upon which we'll place the button.
+            widget::Canvas::new()
+                .pad(0.0)
+                .flow_right(&[
+                    (ids.controls, widget::Canvas::new().length(300.0)),
+                    (ids.game_display, widget::Canvas::new().color(color::LIGHT_GRAY))
+                ])
+                .set(ids.canvas, ui);
 
-struct GameBoard {
-    generations: Vec<Generation>
-}
-impl GameBoard {
-    fn initialize_with(initial_generation: Generation) -> GameBoard {
-        GameBoard {
-            generations: vec!(initial_generation)
-        }
-    }
+            let start_stop_label = if game_state.running {
+                "Stop"
+            } else {
+                "Start"
+            };
+            if widget::Button::new()
+                .std_size()
+                .top_left_with_margin_on(ids.controls, 40.0)
+                .label(start_stop_label)
+                .set(ids.start_stop_button, ui)
+                .was_clicked()
+                {
+                    println!("Changing running to {:}...", !game_state.running);
+                    game_state.running = !game_state.running;
+                }
 
-    fn get_current_generation(&self) -> &Generation {
-        self.generations.index(self.generations.len() - 1)
-    }
-
-    fn advance_time(&mut self) {
-        let new_generation = self.get_current_generation().create_offspring();
-        self.generations.push(new_generation);
-    }
-}
-impl WithLiveCells for GameBoard {
-    fn is_alive(&self, pos: &Position) -> bool {
-        self.get_current_generation().is_alive(pos)
-    }
-}
-
-struct Generation {
-    live_positions: HashSet<Position>
-}
-impl Generation {
-    fn new(live_positions: HashSet<Position>) -> Generation {
-        Generation {
-            live_positions: live_positions
-        }
-    }
-
-    fn build() -> GenerationBuilder {
-        GenerationBuilder{
-            live_positions: HashSet::new()
-        }
-    }
-
-    fn create_offspring(&self) -> Generation {
-        let mut new_generation: HashSet<Position> = HashSet::new();
-        {
-            let interesting_positions = self.get_live_cells_with_halos();
-            for interesting_position in interesting_positions {
-                let mut count = 0;
-                for neighbour in interesting_position.get_neighbours() {
-                    if self.live_positions.contains(&neighbour) {
-                        count = count + 1;
+            if game_state.running {
+                if widget::Button::new()
+                    .std_height()
+                    .w(50.0)
+                    .down_from(ids.start_stop_button, 20.0)
+                    .label("+")
+                    .set(ids.faster_button, ui)
+                    .was_clicked()
+                    {
+                        game_state.gps *= 1.5;
                     }
-                }
-                if count == 3 {
-                    new_generation.insert(interesting_position);
-                }
-                else if count == 2 && self.live_positions.contains(&interesting_position) {
-                    new_generation.insert(interesting_position);
+
+                if widget::Button::new()
+                    .std_height()
+                    .w(50.0)
+                    .right_from(ids.faster_button, 50.0)
+                    .label("-")
+                    .set(ids.slower_button, ui)
+                    .was_clicked()
+                    {
+                        game_state.gps /= 1.5;
+                    }
+            }
+            else {
+                if widget::Button::new()
+                    .std_size()
+                    .down_from(ids.start_stop_button, 20.0)
+                    .label("One step")
+                    .set(ids.step_button, ui)
+                    .was_clicked()
+                    {
+                        game_state.board.advance_time();
+                    }
+            }
+
+            // A demonstration using widget_matrix to easily draw a matrix of any kind of widget.
+            let (cols, rows) = (100, 100);
+            let mut board = widget::Matrix::new(cols, rows)
+                .middle_of(ids.game_display)
+                .w_h(600.0, 600.0)
+//                .color(color::WHITE)
+                .set(ids.board, ui);
+
+            let x_zero: i64 = (cols/2) as i64;
+            let y_zero: i64 = (rows/2) as i64;
+
+            // The `Matrix` widget returns an `Elements`, which can be used similar to an `Iterator`.
+            while let Some(elem) = board.next(ui) {
+                use gol::WithLiveCells;
+                let (col, row) = (elem.col as i64, elem.row as i64);
+                let (x, y) = (col - x_zero, -(row - y_zero));
+                let position = gol::Position::new(x, y);
+
+                if game_state.board.is_alive(&position) {
+                    let square = widget::Rectangle::fill_with([10.0, 10.0], color::BLACK);
+                    elem.set(square, ui);
                 }
             }
-        }
-        Generation::new(new_generation)
-    }
+        });
 
-    fn get_live_cells_with_halos(&self) -> HashSet<Position> {
-        let mut interesting_positions = HashSet::new();
-        for pos in &self.live_positions {
-            let neighbours = pos.get_neighbours();
-            interesting_positions.extend(neighbours);
-        }
-        interesting_positions
-    }
-}
-impl WithLiveCells for Generation {
-    fn is_alive(&self, pos: &Position) -> bool {
-        self.live_positions.contains(pos)
-    }
-}
-
-struct GenerationBuilder {
-    live_positions: HashSet<Position>
-}
-impl GenerationBuilder {
-    fn add(mut self, x: i64, y: i64) -> GenerationBuilder {
-        let pos = Position::new(x, y);
-        self.live_positions.insert(pos);
-        self
-    }
-
-    fn build(self) -> Generation {
-        Generation::new(self.live_positions)
-    }
-}
-
-#[cfg(test)]
-#[macro_use(expect)]
-extern crate expectest;
-
-#[cfg(test)]
-mod tests {
-    use expectest::prelude::*;
-    use std::collections::HashSet;
-    use super::Position;
-    use super::WithLiveCells;
-    use super::GameBoard;
-    use super::Generation;
-
-    #[test]
-    fn two_positions_with_same_coords_should_be_equal() {
-        let pos1 = Position::new(0, 0);
-        let pos2 = Position::new(0, 0);
-        let pos3 = Position::new(1, 1);
-
-        assert_eq!(pos1, pos2);
-        expect!(pos1).to_not(be_equal_to(pos3));
-    }
-
-    #[test]
-    fn position_should_have_8_neighbours() {
-        let pos = Position::new(0, 0);
-
-        let neighbours: HashSet<Position> = pos.get_neighbours();
-
-        expect!(neighbours.len()).to(be_equal_to(8));
-    }
-
-    #[test]
-    fn new_board_should_have_initialized_live_cells() {
-        let game_board = GameBoard::initialize_with(
-            Generation::build()
-                .add(0, 0)
-                .add(0, 1)
-                .add(1, 0)
-                .add(1, 1)
-                .build());
-
-        let current_generation = game_board.get_current_generation();
-
-        let result = current_generation.is_alive(&Position::new(0, 0));
-
-        expect!(result).to(be_true());
-    }
-
-    #[test]
-    fn lone_cell_should_die() {
-        let mut game_board = GameBoard::initialize_with(
-            Generation::build()
-                .add(0, 0)
-                .build());
-
-        game_board.advance_time();
-
-        let current_generation = game_board.get_current_generation();
-
-        let result = current_generation.is_alive(&Position::new(0, 0));
-
-        expect!(result).to_not(be_true());
-    }
-
-    #[test]
-    fn square_should_survive() {
-        let mut game_board = GameBoard::initialize_with(
-            Generation::build()
-                .add(0, 0)
-                .add(0, 1)
-                .add(1, 0)
-                .add(1, 1)
-                .build());
-
-        game_board.advance_time();
-
-        let current_generation = game_board.get_current_generation();
-
-        expect!(current_generation.is_alive(&Position::new(0, 0))).to(be_true());
-        expect!(current_generation.is_alive(&Position::new(0, 1))).to(be_true());
-        expect!(current_generation.is_alive(&Position::new(1, 0))).to(be_true());
-        expect!(current_generation.is_alive(&Position::new(1, 1))).to(be_true());
-    }
-
-    #[test]
-    fn cell_with_3_neighbours_should_spawn() {
-        let mut game_board = GameBoard::initialize_with(
-            Generation::build()
-                .add(0, 1)
-                .add(1, 0)
-                .add(1, 1)
-                .build());
-
-        game_board.advance_time();
-
-        let current_generation = game_board.get_current_generation();
-
-        expect!(current_generation.is_alive(&Position::new(0, 0))).to(be_true());
+        // Draw the `Ui` if it has changed.
+        window.draw_2d(&event, |c, g| {
+            if let Some(primitives) = ui.draw_if_changed() {
+                fn texture_from_image<T>(img: &T) -> &T { img };
+                conrod::backend::piston_window::draw(c, g, primitives,
+                                                     &mut text_texture_cache,
+                                                     &image_map,
+                                                     texture_from_image);
+            }
+        });
     }
 }
