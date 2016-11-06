@@ -23,7 +23,7 @@ fn main() {
     let opengl = piston_window::OpenGL::V3_2;
 
     let mut window: PistonWindow =
-    WindowSettings::new("All The Widgets!", [WIDTH, HEIGHT])
+    WindowSettings::new("Rust-GoL!", [WIDTH, HEIGHT])
         .opengl(opengl).exit_on_esc(true).vsync(true).build().unwrap();
 
     // construct our `Ui`.
