@@ -1,11 +1,11 @@
 #[macro_use] extern crate conrod;
 extern crate piston_window;
+extern crate rust_gol;
 
 use std::path::Path;
 use piston_window::{EventLoop, PistonWindow, UpdateEvent, WindowSettings};
 use conrod::{color, widget, Borderable, Colorable, Positionable, Widget, Labelable, Sizeable};
-mod gol;
-use gol::GameBoard;
+use rust_gol::{GameBoard, Generation, WithLiveCells, Position};
 mod widgets;
 use widgets::StandardButton;
 
@@ -47,7 +47,7 @@ fn main() {
 
     window.set_ups(60);
 
-    let initial_generation_builder = gol::Generation::build()
+    let initial_generation_builder = Generation::build()
         .add(0, 0)
         .add(0, 1)
         .add(0, -1);
@@ -168,10 +168,9 @@ fn main() {
 
             // The `Matrix` widget returns an `Elements`, which can be used similar to an `Iterator`.
             while let Some(elem) = board.next(ui) {
-                use gol::WithLiveCells;
                 let (col, row) = (elem.col as i64, elem.row as i64);
                 let (x, y) = (col - x_zero, -(row - y_zero));
-                let position = gol::Position::new(x, y);
+                let position = Position::new(x, y);
 
                 if game_state.board.is_alive(&position) {
                     let square = widget::Rectangle::fill_with([10.0, 10.0], color::BLACK);
