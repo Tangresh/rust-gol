@@ -1,9 +1,9 @@
 #[macro_use] extern crate conrod;
-extern crate piston_window;
 extern crate rust_gol;
 
 use std::path::Path;
-use piston_window::{EventLoop, PistonWindow, UpdateEvent, WindowSettings};
+use conrod::backend::piston::{self, Window};
+use conrod::backend::piston::event::{UpdateEvent};
 use conrod::{color, widget, Borderable, Colorable, Positionable, Widget, Labelable, Sizeable};
 use rust_gol::{GameBoard, Generation, WithLiveCells, Position};
 mod widgets;
@@ -20,14 +20,18 @@ fn main() {
     const WIDTH: u32 = 1100;
     const HEIGHT: u32 = 560;
 
-    let opengl = piston_window::OpenGL::V3_2;
+    let opengl = piston::OpenGL::V3_2;
 
-    let mut window: PistonWindow =
-    WindowSettings::new("Rust-GoL!", [WIDTH, HEIGHT])
-        .opengl(opengl).exit_on_esc(true).vsync(true).build().unwrap();
+    let mut window: Window =
+        piston::window::WindowSettings::new("Rust-GoL!", [WIDTH, HEIGHT])
+            .opengl(opengl).exit_on_esc(true).vsync(true).build().unwrap();
+
+    // Create the event loop.
+    let mut events = piston::window::WindowEvents::new();
 
     // construct our `Ui`.
-    let mut ui = conrod::UiBuilder::new().build();
+    let mut ui = conrod::UiBuilder::new([WIDTH as f64, HEIGHT as f64])
+        .build();
 
     // Add a `Font` to the `Ui`'s `font::Map` from file.
 //    let assets = find_folder::Search::KidsThenParents(3, 5).for_folder("assets").unwrap();
@@ -36,7 +40,7 @@ fn main() {
 
     // Create a texture to use for efficiently caching text on the GPU.
     let mut text_texture_cache =
-    conrod::backend::piston_window::GlyphCache::new(&mut window, WIDTH, HEIGHT);
+    piston::window::GlyphCache::new(&mut window, WIDTH, HEIGHT);
 
     // The image map describing each of our widget->image mappings (in our case, none).
     let image_map = conrod::image::Map::new();
@@ -45,7 +49,7 @@ fn main() {
     widget_ids! {struct Ids { canvas, controls, game_display, start_stop_button, step_button, faster_button, slower_button, board }}
     let ids = Ids::new(ui.widget_id_generator());
 
-    window.set_ups(60);
+//    window.set_ups(60);
 
     let initial_generation_builder = Generation::build()
         .add(0, 0)
@@ -75,10 +79,10 @@ fn main() {
     };
 
     // Poll events from the window.
-    while let Some(event) = window.next() {
+    while let Some(event) = window.next_event(&mut events) {
 
         // Convert the piston event to a conrod event.
-        if let Some(e) = conrod::backend::piston_window::convert_event(event.clone(), &window) {
+        if let Some(e) = piston::window::convert_event(event.clone(), &window) {
             ui.handle_event(e);
         }
 
@@ -183,7 +187,7 @@ fn main() {
         window.draw_2d(&event, |c, g| {
             if let Some(primitives) = ui.draw_if_changed() {
                 fn texture_from_image<T>(img: &T) -> &T { img };
-                conrod::backend::piston_window::draw(c, g, primitives,
+                piston::window::draw(c, g, primitives,
                                                      &mut text_texture_cache,
                                                      &image_map,
                                                      texture_from_image);

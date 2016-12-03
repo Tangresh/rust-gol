@@ -4,8 +4,8 @@ version = "0.1.0"
 authors = ["Dominik Menzi <dmenzi@tangresh.ch>"]
 
 [dependencies]
-conrod = "0.44.1"
-piston_window = "0.52"
+conrod = "*"
+#piston_window = "*"
 
 [dev-dependencies]
-expectest = "0.6.0"
+expectest = "*"
