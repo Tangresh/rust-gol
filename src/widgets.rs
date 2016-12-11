@@ -12,4 +12,7 @@ pub trait StandardButton: Sizeable {
 }
 
 impl<'a> StandardButton for conrod::widget::toggle::Toggle<'a> {}
-impl<'a, Show> StandardButton for conrod::widget::button::Button<'a, Show> where Show: conrod::widget::button::Show {}
+impl<'a, Show> StandardButton for conrod::widget::button::Button<'a, Show>
+    where Show: conrod::widget::button::Show
+{
+}

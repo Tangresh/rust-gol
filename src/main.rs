@@ -1,9 +1,10 @@
-#[macro_use] extern crate conrod;
+#[macro_use]
+extern crate conrod;
 extern crate rust_gol;
 
 use std::path::Path;
 use conrod::backend::piston::{self, Window};
-use conrod::backend::piston::event::{UpdateEvent};
+use conrod::backend::piston::event::UpdateEvent;
 use conrod::{color, widget, Borderable, Colorable, Positionable, Widget, Labelable, Sizeable};
 use rust_gol::{GameBoard, Generation, WithLiveCells, Position};
 mod widgets;
@@ -22,49 +23,59 @@ fn main() {
 
     let opengl = piston::OpenGL::V3_2;
 
-    let mut window: Window =
-        piston::window::WindowSettings::new("Rust-GoL!", [WIDTH, HEIGHT])
-            .opengl(opengl).exit_on_esc(true).vsync(true).build().unwrap();
+    let mut window: Window = piston::window::WindowSettings::new("Rust-GoL!", [WIDTH, HEIGHT])
+        .opengl(opengl)
+        .exit_on_esc(true)
+        .vsync(true)
+        .build()
+        .unwrap();
 
     // Create the event loop.
     let mut events = piston::window::WindowEvents::new();
 
     // construct our `Ui`.
-    let mut ui = conrod::UiBuilder::new([WIDTH as f64, HEIGHT as f64])
-        .build();
+    let mut ui = conrod::UiBuilder::new([WIDTH as f64, HEIGHT as f64]).build();
 
     // Add a `Font` to the `Ui`'s `font::Map` from file.
-//    let assets = find_folder::Search::KidsThenParents(3, 5).for_folder("assets").unwrap();
-//    let font_path = assets.join("fonts/NotoSans/NotoSans-Regular.ttf");
+    //    let assets = find_folder::Search::KidsThenParents(3, 5).for_folder("assets").unwrap();
+    //    let font_path = assets.join("fonts/NotoSans/NotoSans-Regular.ttf");
     ui.fonts.insert_from_file(Path::new("/usr/share/fonts/noto/NotoSans-Regular.ttf")).unwrap();
 
     // Create a texture to use for efficiently caching text on the GPU.
-    let mut text_texture_cache =
-    piston::window::GlyphCache::new(&mut window, WIDTH, HEIGHT);
+    let mut text_texture_cache = piston::window::GlyphCache::new(&mut window, WIDTH, HEIGHT);
 
     // The image map describing each of our widget->image mappings (in our case, none).
     let image_map = conrod::image::Map::new();
 
     // Identifiers used for instantiating our widgets.
-    widget_ids! {struct Ids { canvas, controls, game_display, start_stop_button, step_button, faster_button, slower_button, board }}
+    widget_ids! {
+        struct Ids {
+            canvas,
+            controls,
+            game_display,
+            start_stop_button,
+            step_button,
+            faster_button,
+            slower_button,
+            board,
+        }
+     }
     let ids = Ids::new(ui.widget_id_generator());
 
-//    window.set_ups(60);
+    //    window.set_ups(60);
 
     let initial_generation_builder = Generation::build()
         .add(0, 0)
         .add(0, 1)
         .add(0, -1);
-    let initial_generation_builder = initial_generation_builder
-        .add(11, 11)
+    let initial_generation_builder = initial_generation_builder.add(11, 11)
         .add(12, 11)
         .add(12, 13)
         .add(14, 12)
         .add(15, 11)
         .add(16, 11)
         .add(17, 11);
-    let initial_generation_builder = initial_generation_builder
-        .add(2, -1)
+    let initial_generation_builder = initial_generation_builder.add(2, -1)
         .add(3, -1)
         .add(1, -2)
         .add(2, -2)
@@ -75,7 +86,7 @@ fn main() {
         board: GameBoard::initialize_with(initial_generation),
         running: false,
         gps: 4.0,
-        current_time: 0.0
+        current_time: 0.0,
     };
 
     // Poll events from the window.
@@ -92,7 +103,7 @@ fn main() {
 
             if game_state.running {
                 game_state.current_time += args.dt;
-                let generation_time = 1.0/game_state.gps;
+                let generation_time = 1.0 / game_state.gps;
                 while game_state.current_time > generation_time {
                     game_state.current_time -= generation_time;
                     game_state.board.advance_time();
@@ -102,27 +113,20 @@ fn main() {
             // Create a background canvas upon which we'll place the button.
             widget::Canvas::new()
                 .pad(0.0)
-                .flow_right(&[
-                    (ids.controls, widget::Canvas::new().length(300.0)),
-                    (ids.game_display, widget::Canvas::new().color(color::LIGHT_GRAY))
-                ])
+                .flow_right(&[(ids.controls, widget::Canvas::new().length(300.0)),
+                              (ids.game_display, widget::Canvas::new().color(color::LIGHT_GRAY))])
                 .set(ids.canvas, ui);
 
-            let start_stop_label = if game_state.running {
-                "Stop"
-            } else {
-                "Start"
-            };
+            let start_stop_label = if game_state.running { "Stop" } else { "Start" };
             if widget::Button::new()
                 .std_size()
                 .top_left_with_margin_on(ids.controls, 40.0)
                 .label(start_stop_label)
                 .set(ids.start_stop_button, ui)
-                .was_clicked()
-                {
-                    println!("Changing running to {:}...", !game_state.running);
-                    game_state.running = !game_state.running;
-                }
+                .was_clicked() {
+                println!("Changing running to {:}...", !game_state.running);
+                game_state.running = !game_state.running;
+            }
 
             if game_state.running {
                 if widget::Button::new()
@@ -131,10 +135,9 @@ fn main() {
                     .down_from(ids.start_stop_button, 20.0)
                     .label("+")
                     .set(ids.faster_button, ui)
-                    .was_clicked()
-                    {
-                        game_state.gps *= 1.5;
-                    }
+                    .was_clicked() {
+                    game_state.gps *= 1.5;
+                }
 
                 if widget::Button::new()
                     .std_height()
@@ -142,21 +145,18 @@ fn main() {
                     .right_from(ids.faster_button, 50.0)
                     .label("-")
                     .set(ids.slower_button, ui)
-                    .was_clicked()
-                    {
-                        game_state.gps /= 1.5;
-                    }
-            }
-            else {
+                    .was_clicked() {
+                    game_state.gps /= 1.5;
+                }
+            } else {
                 if widget::Button::new()
                     .std_size()
                     .down_from(ids.start_stop_button, 20.0)
                     .label("One step")
                     .set(ids.step_button, ui)
-                    .was_clicked()
-                    {
-                        game_state.board.advance_time();
-                    }
+                    .was_clicked() {
+                    game_state.board.advance_time();
+                }
             }
 
             // A demonstration using widget_matrix to easily draw a matrix of any kind of widget.
@@ -167,10 +167,11 @@ fn main() {
 //                .color(color::WHITE)
                 .set(ids.board, ui);
 
-            let x_zero: i64 = (cols/2) as i64;
-            let y_zero: i64 = (rows/2) as i64;
+            let x_zero: i64 = (cols / 2) as i64;
+            let y_zero: i64 = (rows / 2) as i64;
 
-            // The `Matrix` widget returns an `Elements`, which can be used similar to an `Iterator`.
+            // The `Matrix` widget returns an `Elements`,
+            // which can be used similar to an `Iterator`.
             while let Some(elem) = board.next(ui) {
                 let (col, row) = (elem.col as i64, elem.row as i64);
                 let (x, y) = (col - x_zero, -(row - y_zero));
@@ -186,11 +187,15 @@ fn main() {
         // Draw the `Ui` if it has changed.
         window.draw_2d(&event, |c, g| {
             if let Some(primitives) = ui.draw_if_changed() {
-                fn texture_from_image<T>(img: &T) -> &T { img };
-                piston::window::draw(c, g, primitives,
-                                                     &mut text_texture_cache,
-                                                     &image_map,
-                                                     texture_from_image);
+                fn texture_from_image<T>(img: &T) -> &T {
+                    img
+                };
+                piston::window::draw(c,
+                                     g,
+                                     primitives,
+                                     &mut text_texture_cache,
+                                     &image_map,
+                                     texture_from_image);
             }
         });
     }

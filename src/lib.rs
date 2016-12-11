@@ -4,15 +4,12 @@ use std::ops::Index;
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Position {
     x: i64,
-    y: i64
+    y: i64,
 }
 
 impl Position {
     pub fn new(x: i64, y: i64) -> Position {
-        Position {
-            x: x,
-            y: y,
-        }
+        Position { x: x, y: y }
     }
 
     fn get_neighbours(&self) -> HashSet<Position> {
@@ -35,13 +32,13 @@ pub trait WithLiveCells {
 
 pub struct GameBoard {
     generations: Vec<Generation>,
-    counter: u64
+    counter: u64,
 }
 impl GameBoard {
     pub fn initialize_with(initial_generation: Generation) -> GameBoard {
         GameBoard {
-            generations: vec!(initial_generation),
-            counter: 1
+            generations: vec![initial_generation],
+            counter: 1,
         }
     }
 
@@ -65,19 +62,15 @@ impl WithLiveCells for GameBoard {
 }
 
 pub struct Generation {
-    live_positions: HashSet<Position>
+    live_positions: HashSet<Position>,
 }
 impl Generation {
     fn new(live_positions: HashSet<Position>) -> Generation {
-        Generation {
-            live_positions: live_positions
-        }
+        Generation { live_positions: live_positions }
     }
 
     pub fn build() -> GenerationBuilder {
-        GenerationBuilder{
-            live_positions: HashSet::new()
-        }
+        GenerationBuilder { live_positions: HashSet::new() }
     }
 
     fn create_offspring(&self) -> Generation {
@@ -93,8 +86,7 @@ impl Generation {
                 }
                 if count == 3 {
                     new_generation.insert(interesting_position);
-                }
-                else if count == 2 && self.live_positions.contains(&interesting_position) {
+                } else if count == 2 && self.live_positions.contains(&interesting_position) {
                     new_generation.insert(interesting_position);
                 }
             }
@@ -118,7 +110,7 @@ impl WithLiveCells for Generation {
 }
 
 pub struct GenerationBuilder {
-    live_positions: HashSet<Position>
+    live_positions: HashSet<Position>,
 }
 impl GenerationBuilder {
     pub fn add(mut self, x: i64, y: i64) -> GenerationBuilder {
@@ -166,13 +158,12 @@ mod tests {
 
     #[test]
     fn new_board_should_have_initialized_live_cells() {
-        let game_board = GameBoard::initialize_with(
-            Generation::build()
-                .add(0, 0)
-                .add(0, 1)
-                .add(1, 0)
-                .add(1, 1)
-                .build());
+        let game_board = GameBoard::initialize_with(Generation::build()
+            .add(0, 0)
+            .add(0, 1)
+            .add(1, 0)
+            .add(1, 1)
+            .build());
 
         let current_generation = game_board.get_current_generation();
 
@@ -183,10 +174,9 @@ mod tests {
 
     #[test]
     fn lone_cell_should_die() {
-        let mut game_board = GameBoard::initialize_with(
-            Generation::build()
-                .add(0, 0)
-                .build());
+        let mut game_board = GameBoard::initialize_with(Generation::build()
+            .add(0, 0)
+            .build());
 
         game_board.advance_time();
 
@@ -199,13 +189,12 @@ mod tests {
 
     #[test]
     fn square_should_survive() {
-        let mut game_board = GameBoard::initialize_with(
-            Generation::build()
-                .add(0, 0)
-                .add(0, 1)
-                .add(1, 0)
-                .add(1, 1)
-                .build());
+        let mut game_board = GameBoard::initialize_with(Generation::build()
+            .add(0, 0)
+            .add(0, 1)
+            .add(1, 0)
+            .add(1, 1)
+            .build());
 
         game_board.advance_time();
 
@@ -219,12 +208,11 @@ mod tests {
 
     #[test]
     fn cell_with_3_neighbours_should_spawn() {
-        let mut game_board = GameBoard::initialize_with(
-            Generation::build()
-                .add(0, 1)
-                .add(1, 0)
-                .add(1, 1)
-                .build());
+        let mut game_board = GameBoard::initialize_with(Generation::build()
+            .add(0, 1)
+            .add(1, 0)
+            .add(1, 1)
+            .build());
 
         game_board.advance_time();
 
